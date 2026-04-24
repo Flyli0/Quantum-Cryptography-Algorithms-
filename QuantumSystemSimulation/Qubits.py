@@ -5,20 +5,23 @@ import random
 
 
 class Qubits:  # basis and its state = cubits
-    def __init__(self, basis: Basis, state: int):  # cubit initialization
+    def __init__(self, basis: Basis, state: State):  # cubit initialization
         self.basis = basis
-        if state not in [0,1]:
-            raise AttributeError
-        else:
+        self.state = State.RANDOMSTATE
+        if self.basis in [Basis.DIAGONAL] and state in [State.DEGREE45, State.DEGREE135]:
             self.state = state
+        elif self.basis in [Basis.RECTILINEAR] and state in [State.DEGREE0, State.DEGREE90]:
+            self.state = state
+        else:
+            raise AttributeError
 
     def measure(self, try_basis: Basis) -> int:  # basis measurement simulation
         if self.basis == try_basis:
-            return self.state
+            return self.state.value
         else:  # if measurement is wrong Qubit collapses
             self.basis = Basis.WHATISTHAT
-            self.state = random.randint(0,1)
-            return self.state
+            self.state = State.RANDOMSTATE
+            return self.state.value
 
 
 

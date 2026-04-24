@@ -1,7 +1,12 @@
+import random
 from enum import Enum
 
 
 class State(Enum):
-    BIT0 = 0
-    BIT1 = 1
+    DEGREE0 = 0
+    DEGREE90 = 1
+    DEGREE45 = 0
+    DEGREE135 = 1
+
+    RANDOMSTATE = random.randint(0,1)
 

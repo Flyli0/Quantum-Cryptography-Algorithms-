@@ -1,5 +1,5 @@
-from Basis import Basis
-from State import State
+from QuantumSystemSimulation.Basis import Basis
+from QuantumSystemSimulation.State import State
 import random
 # Qubits behaviour simulation
 
@@ -7,21 +7,25 @@ import random
 class Qubits:  # basis and its state = cubits
     def __init__(self, basis: Basis, state: State):  # cubit initialization
         self.basis = basis
-        self.state = State.RANDOMSTATE
         if self.basis in [Basis.DIAGONAL] and state in [State.DEGREE45, State.DEGREE135]:
             self.state = state
         elif self.basis in [Basis.RECTILINEAR] and state in [State.DEGREE0, State.DEGREE90]:
             self.state = state
         else:
             raise AttributeError
+        if state in [State.DEGREE0, State.DEGREE45]:
+            self.state = 0
+        else:
+            self.state = 1
 
     def measure(self, try_basis: Basis) -> int:  # basis measurement simulation
         if self.basis == try_basis:
-            return self.state.value
+            return self.state
         else:  # if measurement is wrong Qubit collapses
-            self.basis = Basis.WHATISTHAT
-            self.state = State.RANDOMSTATE
-            return self.state.value
+            return random.randint(0,1)
+
+    def __str__(self):
+        return self.basis.value + "  -:-  " + self.state
 
 
 

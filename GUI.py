@@ -81,17 +81,24 @@ class BB84Sim:
                 "efficiency": 0
             }
 
+        sifted_length_before = len(self.sift_a)
+
         sample = max(1, int(len(self.sift_a) * 0.1))
         start = random.randint(0, max(0, len(self.sift_a) - sample))
+
+        test_indices = set(range(start, start + sample))
 
         errors = 0
         for i in range(sample):
             if self.sift_a[start + i] != self.sift_b[start + i]:
                 errors += 1
 
+        self.sift_a = [b for i, b in enumerate(self.sift_a) if i not in test_indices]
+        self.sift_b = [b for i, b in enumerate(self.sift_b) if i not in test_indices]
+
         error_rate = (errors / sample) * 100
 
-        basis_match_rate = (len(self.sift_a) / self.n) * 100
+        basis_match_rate = (sifted_length_before / self.n) * 100
 
         final_key_len = min(512, len(self.sift_a))
         raw_key = self.sift_a[:512]
@@ -102,7 +109,7 @@ class BB84Sim:
 
         return {
             "total": self.n,
-            "sifted": len(self.sift_a),
+            "sifted": sifted_length_before,
             "errors": errors,
             "error_rate": error_rate,
             "secure": error_rate < error_threshold * 100,

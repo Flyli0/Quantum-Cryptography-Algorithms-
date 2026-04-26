@@ -2,7 +2,7 @@ import random
 from QuantumSystemSimulation.Basis import Basis
 from QuantumSystemSimulation.State import State
 from QuantumSystemSimulation.Qubits import Qubits
-from BB84 import rand_basis
+from BB84.RandomBasis import rand_basis
 
 
 class Eve:

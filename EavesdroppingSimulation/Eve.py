@@ -4,7 +4,7 @@ from QuantumSystemSimulation.State import State
 from QuantumSystemSimulation.Qubits import Qubits
 from BB84.RandomBasis import rand_basis
 
-
+#class for eavesdropper Eve
 class Eve:
     def __init__(self):
         self.intercepted_bits: list[int] = []

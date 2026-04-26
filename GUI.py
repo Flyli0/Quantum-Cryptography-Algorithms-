@@ -170,7 +170,7 @@ class BB84GUI:
         self.output.insert(tk.END, f"Efficiency: {stats['efficiency']:.2f}%\n")
 
         self.output.insert(tk.END, f"Secure: {stats['secure']}\n")
-        self.output.insert(tk.END, f"Key (256): {stats['key']}\n")
+        self.output.insert(tk.END, f"Key ({stats['final_key_length']}): {stats['key']}\n")
 
 
 if __name__ == "__main__":

@@ -134,7 +134,7 @@ class BB84Sim:
 
         basis_match_rate = (sifted_length_before / self.n) * 100
 
-        final_key_len = min(512, len(self.sift_a))
+        final_key_len = min(128, len(self.sift_a))
         raw_key = self.sift_a[:final_key_len]
 
         compressed_key = xor_compress(raw_key)
@@ -183,7 +183,7 @@ class BB84GUI:
 
         self.sim = None
 
-        self.n_var = tk.StringVar(value="2000")
+        self.n_var = tk.StringVar(value="1000")
         self.eve_var = tk.BooleanVar()
         self.noise_var = tk.DoubleVar(value=0.0)
         self.threshold_var = tk.DoubleVar(value=0.11)

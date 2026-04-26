@@ -23,6 +23,10 @@ class BB84Sim:
         self.sift_a = []
         self.sift_b = []
 
+        self.eve_basis_match = 0
+        self.eve_errors = 0
+        self.eve_samples = 0
+
     def step(self):
         if self.index >= self.n:
             return None
@@ -40,6 +44,26 @@ class BB84Sim:
         if self.eve_enabled:
             eve_basis = rand_basis()
             measured = qubit.measure(eve_basis)
+
+            if eve_basis == Basis.RECTILINEAR:
+                state = State.DEGREE0 if measured == 0 else State.DEGREE90
+            else:
+                state = State.DEGREE45 if measured == 0 else State.DEGREE135
+
+            qubit = Qubits(eve_basis, state)
+
+        if self.eve_enabled:
+            eve_basis = rand_basis()
+
+            measured = qubit.measure(eve_basis)
+
+            if eve_basis == a_basis:
+                self.eve_basis_match += 1
+
+            if measured != a_bit:
+                self.eve_errors += 1
+
+            self.eve_samples += 1
 
             if eve_basis == Basis.RECTILINEAR:
                 state = State.DEGREE0 if measured == 0 else State.DEGREE90
@@ -107,6 +131,11 @@ class BB84Sim:
 
         efficiency = (len(compressed_key) / self.n) * 100
 
+        eve_basis_match_rate = (self.eve_basis_match / self.eve_samples * 100) if self.eve_samples else 0
+        eve_error_rate = (self.eve_errors / self.eve_samples * 100) if self.eve_samples else 0
+        eve_information_gain = eve_basis_match_rate
+        detection_probability = min(100, max(0, (eve_error_rate * 100 - 5) / (error_threshold * 100 - 5) * 100))
+
         return {
             "total": self.n,
             "sifted": sifted_length_before,
@@ -117,7 +146,11 @@ class BB84Sim:
             "basis_match_rate": basis_match_rate,
             "sample_size": sample,
             "final_key_length": len(compressed_key),
-            "efficiency": efficiency
+            "efficiency": efficiency,
+            "eve_basis_match_rate": eve_basis_match_rate,
+            "eve_error_rate": eve_error_rate,
+            "eve_information_gain": eve_information_gain,
+            "eve_detection_probability": detection_probability,
         }
 
 
@@ -183,6 +216,13 @@ class BB84GUI:
 
         self.output.insert(tk.END, f"Secure: {stats['secure']}\n")
         self.output.insert(tk.END, f"Key ({stats['final_key_length']}): {stats['key']}\n")
+
+        if self.eve_var.get():
+            self.output.insert(tk.END, "\n=== EVE STATS ===\n")
+            self.output.insert(tk.END, f"Eve basis match rate: {stats['eve_basis_match_rate']:.2f}%\n")
+            self.output.insert(tk.END, f"Eve error rate: {stats['eve_error_rate']:.2f}%\n")
+            self.output.insert(tk.END, f"Eve information gain: {stats['eve_information_gain']:.2f}%\n")
+            self.output.insert(tk.END, f"Eve detection probability: {stats['eve_detection_probability']:.2f}%\n")
 
 
 if __name__ == "__main__":

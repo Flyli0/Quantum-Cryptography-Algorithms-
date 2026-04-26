@@ -74,7 +74,10 @@ class BB84Sim:
                 "errors": 0,
                 "error_rate": 0,
                 "secure": False,
-                "key": ""
+                "key": "",
+                "basis_match_rate": 0,
+                "sample_size": 0,
+                "efficiency": 0
             }
 
         sample = max(1, int(len(self.sift_a) * 0.1))
@@ -87,13 +90,22 @@ class BB84Sim:
 
         error_rate = (errors / sample) * 100
 
+        basis_match_rate = (len(self.sift_a) / self.n) * 100
+
+        final_key_len = min(256, len(self.sift_a))
+        efficiency = (final_key_len / self.n) * 100
+
         return {
             "total": self.n,
             "sifted": len(self.sift_a),
             "errors": errors,
             "error_rate": error_rate,
             "secure": error_rate < error_threshold * 100,
-            "key": "".join(map(str, self.sift_a[:256]))
+            "key": "".join(map(str, self.sift_a[:256])),
+            "basis_match_rate": basis_match_rate,
+            "sample_size": sample,
+            "final_key_length": final_key_len,
+            "efficiency": efficiency
         }
 
 
@@ -145,10 +157,18 @@ class BB84GUI:
         stats = self.sim.stats(self.threshold_var.get())
 
         self.output.insert(tk.END, "\n=== FINAL ===\n")
-        self.output.insert(tk.END, f"Total: {stats['total']}\n")
-        self.output.insert(tk.END, f"Sifted: {stats['sifted']}\n")
+
+        self.output.insert(tk.END, f"Total photons: {stats['total']}\n")
+        self.output.insert(tk.END, f"Sifted key length: {stats['sifted']}\n")
+
+        self.output.insert(tk.END, f"Basis match rate: {stats['basis_match_rate']:.2f}%\n")
+        self.output.insert(tk.END, f"Bits used for error checking: {stats['sample_size']}\n")
         self.output.insert(tk.END, f"Errors: {stats['errors']}\n")
         self.output.insert(tk.END, f"Error rate: {stats['error_rate']:.2f}%\n")
+
+        self.output.insert(tk.END, f"Final key length: {stats['final_key_length']}\n")
+        self.output.insert(tk.END, f"Efficiency: {stats['efficiency']:.2f}%\n")
+
         self.output.insert(tk.END, f"Secure: {stats['secure']}\n")
         self.output.insert(tk.END, f"Key (256): {stats['key']}\n")
 

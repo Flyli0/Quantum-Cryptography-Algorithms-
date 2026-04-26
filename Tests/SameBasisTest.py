@@ -36,13 +36,14 @@ print(alice_bits)
 
 # 4) Alice sends it to Bob
 # Bob
-bob_basis = []
+
 bob_bits = []
+bob_basis = alice_basis
 # 5) Bob generates his random basis sequence
 for _ in range(qubits_number):
-        bob_basis.append(rand_basis())
+
         bob_bits.append(alice_qubits[_].measure(bob_basis[_]))
-bob_basis = alice_basis
+
 print(bob_bits)
 
 

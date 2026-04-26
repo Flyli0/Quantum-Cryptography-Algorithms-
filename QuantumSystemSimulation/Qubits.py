@@ -22,5 +22,4 @@ class Qubits:
         else:
             return random.randint(0, 1)
 
-    def __str__(self):
-        return self.basis.value + "  -:-  " + self.state.value
+

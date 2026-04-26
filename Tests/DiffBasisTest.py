@@ -10,7 +10,7 @@ for rrr in range(trials):
     alice_basis = []
     alice_qubits = []
 
-    qubits_number = 100
+    qubits_number = 10000
 
     for _ in range(qubits_number):
             # 1) Alice generates random bit sequence

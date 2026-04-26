@@ -4,6 +4,7 @@ import random
 from BB84.RandomBit import random_bit
 from BB84.RandomBasis import rand_basis
 from QuantumSystemSimulation.Qubits import Qubits, Basis, State
+from BB84.PrivacyAmplification import xor_compress
 
 
 class BB84Sim:
@@ -92,8 +93,12 @@ class BB84Sim:
 
         basis_match_rate = (len(self.sift_a) / self.n) * 100
 
-        final_key_len = min(256, len(self.sift_a))
-        efficiency = (final_key_len / self.n) * 100
+        final_key_len = min(512, len(self.sift_a))
+        raw_key = self.sift_a[:512]
+
+        compressed_key = xor_compress(raw_key)
+
+        efficiency = (len(compressed_key) / self.n) * 100
 
         return {
             "total": self.n,
@@ -101,10 +106,10 @@ class BB84Sim:
             "errors": errors,
             "error_rate": error_rate,
             "secure": error_rate < error_threshold * 100,
-            "key": "".join(map(str, self.sift_a[:256])),
+            "key": compressed_key,
             "basis_match_rate": basis_match_rate,
             "sample_size": sample,
-            "final_key_length": final_key_len,
+            "final_key_length": len(compressed_key),
             "efficiency": efficiency
         }
 
@@ -117,7 +122,7 @@ class BB84GUI:
 
         self.sim = None
 
-        self.n_var = tk.StringVar(value="1000")
+        self.n_var = tk.StringVar(value="2000")
         self.eve_var = tk.BooleanVar()
         self.noise_var = tk.DoubleVar(value=0.0)
         self.threshold_var = tk.DoubleVar(value=0.11)

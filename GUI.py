@@ -23,6 +23,7 @@ class BB84Sim:
         self.sift_a = []
         self.sift_b = []
 
+        # Eve stats (physical)
         self.eve_basis_match = 0
         self.eve_errors = 0
         self.eve_samples = 0
@@ -41,6 +42,7 @@ class BB84Sim:
 
         qubit = Qubits(a_basis, state)
 
+        # Eve intercept-resend
         if self.eve_enabled:
             eve_basis = rand_basis()
             measured = qubit.measure(eve_basis)
@@ -52,9 +54,9 @@ class BB84Sim:
 
             qubit = Qubits(eve_basis, state)
 
+        # Eve stats
         if self.eve_enabled:
             eve_basis = rand_basis()
-
             measured = qubit.measure(eve_basis)
 
             if eve_basis == a_basis:
@@ -88,10 +90,9 @@ class BB84Sim:
             self.sift_b.append(b_bit)
 
         self.index += 1
-
         return True
 
-    def stats(self, error_threshold):
+    def stats(self, error_threshold, sample_ratio=0.1):
         if len(self.sift_a) == 0:
             return {
                 "total": self.n,
@@ -102,14 +103,23 @@ class BB84Sim:
                 "key": "",
                 "basis_match_rate": 0,
                 "sample_size": 0,
-                "efficiency": 0
+                "final_key_length": 0,
+                "efficiency": 0,
+
+                "eve_basis_match_rate": 0,
+                "eve_error_rate": 0,
+                "eve_information_gain": 0,
+                "eve_detection_probability": 0,
+                "eve_detected": 0,
+                "eve_trials": 0
             }
 
         sifted_length_before = len(self.sift_a)
 
-        sample = max(1, int(len(self.sift_a) * 0.1))
-        start = random.randint(0, max(0, len(self.sift_a) - sample))
+        sample = max(1, int(len(self.sift_a) * sample_ratio))
+        sample = min(sample, len(self.sift_a))
 
+        start = random.randint(0, max(0, len(self.sift_a) - sample))
         test_indices = set(range(start, start + sample))
 
         errors = 0
@@ -124,33 +134,44 @@ class BB84Sim:
 
         basis_match_rate = (sifted_length_before / self.n) * 100
 
-        final_key_len = min(512, len(self.sift_a))
-        raw_key = self.sift_a[:512]
+        final_key_len = min(128, len(self.sift_a))
+        raw_key = self.sift_a[:final_key_len]
 
         compressed_key = xor_compress(raw_key)
 
         efficiency = (len(compressed_key) / self.n) * 100
 
-        eve_basis_match_rate = (self.eve_basis_match / self.eve_samples * 100) if self.eve_samples else 0
-        eve_error_rate = (self.eve_errors / self.eve_samples * 100) if self.eve_samples else 0
+        # =========================
+        # EVE METRICS (RESTORED)
+        # =========================
+        eve_basis_match_rate = (
+            self.eve_basis_match / self.eve_samples * 100
+        ) if self.eve_samples else 0
+
+        eve_error_rate = (
+            self.eve_errors / self.eve_samples * 100
+        ) if self.eve_samples else 0
+
         eve_information_gain = eve_basis_match_rate
-        detection_probability = min(100, max(0, (eve_error_rate * 100 - 5) / (error_threshold * 100 - 5) * 100))
 
         return {
             "total": self.n,
+
             "sifted": sifted_length_before,
-            "errors": errors,
-            "error_rate": error_rate,
-            "secure": error_rate < error_threshold * 100,
-            "key": compressed_key,
             "basis_match_rate": basis_match_rate,
             "sample_size": sample,
+            "errors": errors,
+            "error_rate": error_rate,
+
             "final_key_length": len(compressed_key),
             "efficiency": efficiency,
+            "secure": error_rate < error_threshold * 100,
+            "key": compressed_key,
+
+            # Eve physical stats
             "eve_basis_match_rate": eve_basis_match_rate,
             "eve_error_rate": eve_error_rate,
-            "eve_information_gain": eve_information_gain,
-            "eve_detection_probability": detection_probability,
+            "eve_information_gain": eve_information_gain
         }
 
 
@@ -158,14 +179,19 @@ class BB84GUI:
     def __init__(self, root):
         self.root = root
         self.root.title("BB84 Simulator")
-        self.root.geometry("750x600")
+        self.root.geometry("750x650")
 
         self.sim = None
 
-        self.n_var = tk.StringVar(value="2000")
+        self.n_var = tk.StringVar(value="1000")
         self.eve_var = tk.BooleanVar()
         self.noise_var = tk.DoubleVar(value=0.0)
         self.threshold_var = tk.DoubleVar(value=0.11)
+        self.sample_var = tk.DoubleVar(value=0.1)
+
+        # GLOBAL Eve tracking (FIXED)
+        self.eve_trials = 0
+        self.eve_detected = 0
 
         self.build_ui()
 
@@ -178,13 +204,16 @@ class BB84GUI:
 
         tk.Checkbutton(frm, text="Eve enabled", variable=self.eve_var).grid(row=1, column=0)
 
-        tk.Label(frm, text="Noise (0–0.05)").grid(row=2, column=0)
+        tk.Label(frm, text="Noise").grid(row=2, column=0)
         tk.Entry(frm, textvariable=self.noise_var).grid(row=2, column=1)
 
         tk.Label(frm, text="Error threshold").grid(row=3, column=0)
         tk.Entry(frm, textvariable=self.threshold_var).grid(row=3, column=1)
 
-        tk.Button(frm, text="Start", command=self.start).grid(row=4, column=0)
+        tk.Label(frm, text="Sample ratio").grid(row=4, column=0)
+        tk.Entry(frm, textvariable=self.sample_var).grid(row=4, column=1)
+
+        tk.Button(frm, text="Start", command=self.start).grid(row=5, column=0)
 
         self.output = tk.Text(self.root, height=25)
         self.output.pack()
@@ -194,13 +223,31 @@ class BB84GUI:
         self.sim = BB84Sim(n, self.eve_var.get(), self.noise_var.get())
 
         self.output.delete(1.0, tk.END)
-        self.output.insert(tk.END, "Simulation running...\n")
+        self.output.insert(tk.END, "Running simulation...\n")
 
         while self.sim.step():
             pass
 
-        stats = self.sim.stats(self.threshold_var.get())
+        stats = self.sim.stats(
+            self.threshold_var.get(),
+            self.sample_var.get()
+        )
 
+        # =========================
+        # GLOBAL DETECTION LOGIC
+        # =========================
+        if self.eve_var.get():
+            self.eve_trials += 1
+            if stats["errors"] > 0:
+                self.eve_detected += 1
+
+        detection_probability = (
+            self.eve_detected / self.eve_trials * 100
+        ) if self.eve_trials else 0
+
+        # =========================
+        # OUTPUT
+        # =========================
         self.output.insert(tk.END, "\n=== FINAL ===\n")
 
         self.output.insert(tk.END, f"Total photons: {stats['total']}\n")
@@ -215,14 +262,19 @@ class BB84GUI:
         self.output.insert(tk.END, f"Efficiency: {stats['efficiency']:.2f}%\n")
 
         self.output.insert(tk.END, f"Secure: {stats['secure']}\n")
-        self.output.insert(tk.END, f"Key ({stats['final_key_length']}): {stats['key']}\n")
+        self.output.insert(tk.END, f"Key: {stats['key']}\n")
 
+        # Eve stats (RESTORED)
         if self.eve_var.get():
             self.output.insert(tk.END, "\n=== EVE STATS ===\n")
+
+            self.output.insert(tk.END, f"Eve detection probability: {detection_probability:.2f}%\n")
+            self.output.insert(tk.END, f"Eve detected: {self.eve_detected}\n")
+            self.output.insert(tk.END, f"Eve trials: {self.eve_trials}\n")
+
             self.output.insert(tk.END, f"Eve basis match rate: {stats['eve_basis_match_rate']:.2f}%\n")
-            self.output.insert(tk.END, f"Eve error rate: {stats['eve_error_rate']:.2f}%\n")
+            self.output.insert(tk.END, f"Eve errors introduced: {stats['eve_error_rate']:.2f}%\n")
             self.output.insert(tk.END, f"Eve information gain: {stats['eve_information_gain']:.2f}%\n")
-            self.output.insert(tk.END, f"Eve detection probability: {stats['eve_detection_probability']:.2f}%\n")
 
 
 if __name__ == "__main__":

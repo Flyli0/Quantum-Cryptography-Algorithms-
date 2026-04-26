@@ -41,6 +41,7 @@ class BB84Sim:
 
         qubit = Qubits(a_basis, state)
 
+        # Eve intercept 1
         if self.eve_enabled:
             eve_basis = rand_basis()
             measured = qubit.measure(eve_basis)
@@ -52,9 +53,9 @@ class BB84Sim:
 
             qubit = Qubits(eve_basis, state)
 
+        # Eve intercept 2 (statistics)
         if self.eve_enabled:
             eve_basis = rand_basis()
-
             measured = qubit.measure(eve_basis)
 
             if eve_basis == a_basis:
@@ -88,10 +89,9 @@ class BB84Sim:
             self.sift_b.append(b_bit)
 
         self.index += 1
-
         return True
 
-    def stats(self, error_threshold):
+    def stats(self, error_threshold, sample_ratio=0.1):
         if len(self.sift_a) == 0:
             return {
                 "total": self.n,
@@ -107,9 +107,10 @@ class BB84Sim:
 
         sifted_length_before = len(self.sift_a)
 
-        sample = max(1, int(len(self.sift_a) * 0.1))
-        start = random.randint(0, max(0, len(self.sift_a) - sample))
+        sample = max(1, int(len(self.sift_a) * sample_ratio))
+        sample = min(sample, len(self.sift_a))
 
+        start = random.randint(0, max(0, len(self.sift_a) - sample))
         test_indices = set(range(start, start + sample))
 
         errors = 0
@@ -125,7 +126,7 @@ class BB84Sim:
         basis_match_rate = (sifted_length_before / self.n) * 100
 
         final_key_len = min(512, len(self.sift_a))
-        raw_key = self.sift_a[:512]
+        raw_key = self.sift_a[:final_key_len]
 
         compressed_key = xor_compress(raw_key)
 
@@ -134,7 +135,11 @@ class BB84Sim:
         eve_basis_match_rate = (self.eve_basis_match / self.eve_samples * 100) if self.eve_samples else 0
         eve_error_rate = (self.eve_errors / self.eve_samples * 100) if self.eve_samples else 0
         eve_information_gain = eve_basis_match_rate
-        detection_probability = min(100, max(0, (eve_error_rate * 100 - 5) / (error_threshold * 100 - 5) * 100))
+
+        detection_probability = min(
+            100,
+            max(0, (eve_error_rate * 100 - 5) / (error_threshold * 100 - 5) * 100)
+        )
 
         return {
             "total": self.n,
@@ -158,7 +163,7 @@ class BB84GUI:
     def __init__(self, root):
         self.root = root
         self.root.title("BB84 Simulator")
-        self.root.geometry("750x600")
+        self.root.geometry("750x650")
 
         self.sim = None
 
@@ -166,6 +171,9 @@ class BB84GUI:
         self.eve_var = tk.BooleanVar()
         self.noise_var = tk.DoubleVar(value=0.0)
         self.threshold_var = tk.DoubleVar(value=0.11)
+
+        # NEW: sample size
+        self.sample_var = tk.DoubleVar(value=0.1)
 
         self.build_ui()
 
@@ -184,7 +192,11 @@ class BB84GUI:
         tk.Label(frm, text="Error threshold").grid(row=3, column=0)
         tk.Entry(frm, textvariable=self.threshold_var).grid(row=3, column=1)
 
-        tk.Button(frm, text="Start", command=self.start).grid(row=4, column=0)
+        # NEW: sample input
+        tk.Label(frm, text="Sample ratio (0–1)").grid(row=4, column=0)
+        tk.Entry(frm, textvariable=self.sample_var).grid(row=4, column=1)
+
+        tk.Button(frm, text="Start", command=self.start).grid(row=5, column=0)
 
         self.output = tk.Text(self.root, height=25)
         self.output.pack()
@@ -199,7 +211,10 @@ class BB84GUI:
         while self.sim.step():
             pass
 
-        stats = self.sim.stats(self.threshold_var.get())
+        stats = self.sim.stats(
+            self.threshold_var.get(),
+            self.sample_var.get()
+        )
 
         self.output.insert(tk.END, "\n=== FINAL ===\n")
 
